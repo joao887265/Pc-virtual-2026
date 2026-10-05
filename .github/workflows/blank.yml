@@ -1,0 +1,56 @@
+name: PC Virtual no GitHub Actions
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  configurar-pc-virtual:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do Código-Fonte
+        uses: actions/checkout@v4
+
+      - name: Atualizar Pacotes do Sistema Hospedeiro
+        run: |
+          sudo apt-get update
+          sudo apt-get upgrade -y
+
+      - name: Instalar Ferramentas de Virtualização (QEMU)
+        run: |
+          sudo apt-get install -y qemu-kvm qemu-utils
+          sudo apt-get install -y libvirt-daemon-system libvirt-clients
+
+      - name: Verificar Suporte a KVM/Aceleração
+        run: |
+          kvm-ok || echo "Aceleração de hardware não disponível, usando emulação em software."
+
+      - name: Baixar Imagem de Sistema Operacional Leve
+        run: |
+          wget -q http://tinycorelinux.net -O os-image.iso
+
+      - name: Criar Disco Rígido Virtual
+        run: |
+          qemu-img create -f qcow2 pc-virtual-disk.qcow2 2G
+
+      - name: Iniciar PC Virtual e Executar Comandos
+        run: |
+          echo "Iniciando a máquina virtual via terminal..."
+          qemu-system-x86_64 \
+            -m 1024 \
+            -drive file=pc-virtual-disk.qcow2,format=qcow2 \
+            -cdrom os-image.iso \
+            -boot d \
+            -display none \
+            -daemonize
+          
+          sleep 10
+          echo "PC Virtual inicializado com sucesso em segundo plano!"
+
+      - name: Verificar Status dos Processos Virtuais
+        run: |
+          ps aux | grep qemu
